@@ -6,9 +6,17 @@ class StudentDialog(QDialog):
         super().__init__(parent)
         self.setWindowTitle("Student Details")
         self.setFixedWidth(400)
-        layout = QVBoxLayout()
+        self.setFixedHeight(500)  # Reduce dialog height
 
-        # Fields that must be integers
+        # Main layout for dialog
+        dialog_layout = QVBoxLayout(self)
+
+        # Scroll area setup
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll_content = QWidget()
+        layout = QVBoxLayout(scroll_content)
+
         int_fields = [
             "scholar_id", "apaar_id", "permanent_enrollment_number", "tc_number", "contact", "alternate_contact"
         ]
