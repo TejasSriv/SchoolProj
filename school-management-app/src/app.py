@@ -54,6 +54,10 @@ class MainWindow(QMainWindow):
         login_button.clicked.connect(self.handle_login)  # Connect to login handler
         form_layout.addWidget(login_button)
 
+        #Enter key to login
+        self.username_input.returnPressed.connect(self.handle_login)
+        self.password_input.returnPressed.connect(self.handle_login)
+
         # Center the form horizontally
         h_layout = QHBoxLayout()
         h_layout.addStretch(1)
