@@ -19,21 +19,27 @@ class StudentSection(QWidget):
         title.setStyleSheet("font-size: 20px; font-weight: bold;")
         layout.addWidget(title)
 
-        # Search bar
-        search_layout = QHBoxLayout()
+        search_controls_layout = QHBoxLayout() # New layout for search elements
         self.search_input = QLineEdit()
         self.search_input.setPlaceholderText("Search by name or ID")
         search_btn = QPushButton("Search")
         search_btn.clicked.connect(self.search_students)
-        search_layout.addWidget(self.search_input)
-        search_layout.addWidget(search_btn)
-        layout.addLayout(search_layout)
+        
+        self.clear_search_btn = QPushButton("Clear Search")
+        self.clear_search_btn.clicked.connect(self.clear_search)
+        
+        search_controls_layout.addWidget(self.search_input)
+        search_controls_layout.addWidget(search_btn)
+        search_controls_layout.addWidget(self.clear_search_btn) # Add clear button
+        layout.addLayout(search_controls_layout)
 
-        # Table for students
+        self.search_status_label = QLabel("")
+        self.search_status_label.setStyleSheet("font-style: italic; color: gray;")
+        layout.addWidget(self.search_status_label)
+
         self.table = QTableWidget()
         self.table.setSelectionBehavior(QTableWidget.SelectRows)
         self.table.setSelectionMode(QTableWidget.SingleSelection)
-
         self.table.cellDoubleClicked.connect(self.view_student_details)
 
         self.display_column_names = {
@@ -63,60 +69,67 @@ class StudentSection(QWidget):
 
         self.load_students()
 
-    def load_students(self):
+    def load_students(self, students=None):
+        """
+        Loads students into the table. If 'students' argument is None,
+        it fetches all students. Otherwise, it displays the provided list.
+        """
         self.table.setRowCount(0)
-        try:
-            students = self.student_db_manager.get_all_students()
-            for row_idx, student in enumerate(students):
-                self.table.insertRow(row_idx)
-                self.table.setVerticalHeaderItem(row_idx, QTableWidgetItem(""))
-                self.table.verticalHeaderItem(row_idx).setData(Qt.UserRole, student)
+        
+        if students is None:
+            try:
+                students = self.student_db_manager.get_all_students()
+                self.search_status_label.setText("")
+            except mysql.connector.Error as err:
+                QMessageBox.critical(self, "Database Error", f"Error loading students: {err}")
+                return
+            except Exception as e:
+                QMessageBox.critical(self, "Application Error", f"An unexpected error occurred: {e}")
+                return
 
-                for col_idx, attr_name in enumerate(self.display_column_names.keys()):
-                    value = getattr(student, attr_name, "")
-                    if isinstance(value, (type(None))) and value is not False:
-                        value_str = ""
-                    elif isinstance(value, bool):
-                        value_str = "Yes" if value else "No"
-                    elif isinstance(value, (list, tuple)):
-                         value_str = str(value[0]) if value and isinstance(value, tuple) else str(value)
-                    elif isinstance(value, (int, float)):
-                        value_str = str(value)
-                    else:
-                        value_str = str(value)
-                    self.table.setItem(row_idx, col_idx, QTableWidgetItem(value_str))
-        except mysql.connector.Error as err:
-            QMessageBox.critical(self, "Database Error", f"Error loading students: {err}")
-        except Exception as e:
-            QMessageBox.critical(self, "Application Error", f"An unexpected error occurred: {e}")
+        if self.search_input.text().strip():
+             self.search_status_label.setText(f"Showing {len(students)} search results.")
+        else:
+            self.search_status_label.setText(f"Showing all {len(students)} students.")
+
+
+        for row_idx, student in enumerate(students):
+            self.table.insertRow(row_idx)
+            self.table.setVerticalHeaderItem(row_idx, QTableWidgetItem(""))
+            self.table.verticalHeaderItem(row_idx).setData(Qt.UserRole, student)
+
+            for col_idx, attr_name in enumerate(self.display_column_names.keys()):
+                value = getattr(student, attr_name, "")
+                if isinstance(value, (type(None))) and value is not False:
+                    value_str = ""
+                elif isinstance(value, bool):
+                    value_str = "Yes" if value else "No"
+                elif isinstance(value, (list, tuple)):
+                     value_str = str(value[0]) if value and isinstance(value, tuple) else str(value)
+                elif isinstance(value, (int, float)):
+                    value_str = str(value)
+                else:
+                    value_str = str(value)
+                self.table.setItem(row_idx, col_idx, QTableWidgetItem(value_str))
 
     def search_students(self):
         keyword = self.search_input.text().strip()
-        self.table.setRowCount(0)
+        if not keyword:
+            self.load_students()
+            return
+
         try:
             students = self.student_db_manager.search_students(keyword)
-            for row_idx, student in enumerate(students):
-                self.table.insertRow(row_idx)
-                self.table.setVerticalHeaderItem(row_idx, QTableWidgetItem(""))
-                self.table.verticalHeaderItem(row_idx).setData(Qt.UserRole, student)
-
-                for col_idx, attr_name in enumerate(self.display_column_names.keys()):
-                    value = getattr(student, attr_name, "")
-                    if isinstance(value, (type(None))) and value is not False:
-                        value_str = ""
-                    elif isinstance(value, bool):
-                        value_str = "Yes" if value else "No"
-                    elif isinstance(value, (list, tuple)):
-                         value_str = str(value[0]) if value and isinstance(value, tuple) else str(value)
-                    elif isinstance(value, (int, float)):
-                        value_str = str(value)
-                    else:
-                        value_str = str(value)
-                    self.table.setItem(row_idx, col_idx, QTableWidgetItem(value_str))
+            self.load_students(students)
         except mysql.connector.Error as err:
             QMessageBox.critical(self, "Database Error", f"Error searching students: {err}")
         except Exception as e:
             QMessageBox.critical(self, "Application Error", f"An unexpected error occurred: {e}")
+
+    def clear_search(self):
+        """Clears the search input and reloads all students."""
+        self.search_input.clear()
+        self.load_students()
 
     def add_student(self):
         dialog = StudentDetailsDialog(self, student=None, mode='add')
@@ -134,7 +147,6 @@ class StudentSection(QWidget):
             except Exception as e:
                 QMessageBox.critical(self, "Application Error", f"An unexpected error occurred during student addition: {e}")
 
-    
     def view_student_details(self, row, column):
         selected_student = self.table.verticalHeaderItem(row).data(Qt.UserRole)
         if not selected_student:
@@ -143,4 +155,7 @@ class StudentSection(QWidget):
 
         dialog = StudentDetailsDialog(self, student=selected_student, mode='view')
         if dialog.exec_() == QDialog.Accepted:
-            self.load_students()
+            if self.search_input.text().strip():
+                self.search_students()
+            else:
+                self.load_students()
