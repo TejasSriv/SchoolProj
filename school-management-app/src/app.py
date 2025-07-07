@@ -3,6 +3,7 @@ from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QLabel, QLineEdit, QPushButton, QWidget, QVBoxLayout, QHBoxLayout, QMessageBox
 )
 from PyQt5.QtCore import Qt
+from qt_material import apply_stylesheet  # <-- Add this import
 
 from controllers.auth import check_user_credentials
 from views.admin_dashboard import AdminDashboard
@@ -83,6 +84,7 @@ class MainWindow(QMainWindow):
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
+    apply_stylesheet(app, theme='light_blue.xml')  # <-- Apply Material theme
     window = MainWindow()
     window.show()
     sys.exit(app.exec_())
