@@ -3,6 +3,8 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtCore import Qt
 
+from views.student_section import StudentSection
+
 class AdminDashboard(QMainWindow):
     def __init__(self, username, geometry=None):
         super().__init__()
@@ -74,15 +76,13 @@ class AdminDashboard(QMainWindow):
         dashboard_label = QLabel(f"Welcome, {username}! This is the admin dashboard.")
         dashboard_label.setAlignment(Qt.AlignCenter)
         dashboard_label.setStyleSheet("font-size: 22px; color: #232946;")
-        students_label = QLabel("Students Section")
-        students_label.setAlignment(Qt.AlignCenter)
-        students_label.setStyleSheet("font-size: 20px; color: #232946;")
+        students_widget = StudentSection()
         teachers_label = QLabel("Teachers Section")
         teachers_label.setAlignment(Qt.AlignCenter)
         teachers_label.setStyleSheet("font-size: 20px; color: #232946;")
 
         self.stack.addWidget(dashboard_label)  # index 0
-        self.stack.addWidget(students_label)   # index 1
+        self.stack.addWidget(students_widget)   # index 1
         self.stack.addWidget(teachers_label)   # index 2
 
         # Connect sidebar buttons to stack
