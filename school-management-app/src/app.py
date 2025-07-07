@@ -3,9 +3,9 @@ from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QLabel, QLineEdit, QPushButton, QWidget, QVBoxLayout, QHBoxLayout, QMessageBox
 )
 from PyQt5.QtCore import Qt
-from qt_material import apply_stylesheet  # <-- Add this import
+from qt_material import apply_stylesheet
 
-from controllers.auth import check_user_credentials
+from controllers.auth import AuthManager
 from views.admin_dashboard import AdminDashboard
 
 class MainWindow(QMainWindow):
@@ -13,6 +13,9 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.setWindowTitle("School Management App")
         self.setGeometry(100, 100, 1000, 600)
+
+        self.auth_manager = AuthManager()
+        self.auth_manager.create_admin_table_if_not_exists()
 
         # Central widget and main layout
         central_widget = QWidget(self)
@@ -72,7 +75,7 @@ class MainWindow(QMainWindow):
     def handle_login(self):
         username = self.username_input.text()
         password = self.password_input.text()
-        if check_user_credentials(username, password):
+        if self.auth_manager.authenticate(username, password):
             self.dashboard = AdminDashboard(
                 username,
                 self.geometry()
