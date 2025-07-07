@@ -1,5 +1,5 @@
 from PyQt5.QtWidgets import (
-    QWidget, QVBoxLayout, QLabel, QPushButton, QHBoxLayout, QTableWidget, QTableWidgetItem, QLineEdit, QMessageBox
+    QWidget, QVBoxLayout, QLabel, QPushButton, QHBoxLayout, QTableWidget, QTableWidgetItem, QLineEdit, QMessageBox, QHeaderView
 )
 from PyQt5.QtCore import Qt
 from controllers.db import get_connection
@@ -27,9 +27,12 @@ class StudentSection(QWidget):
         self.table = QTableWidget()
         self.table.setColumnCount(4)
         self.table.setHorizontalHeaderLabels([
-            "scholar_id", "name", "class", "address"
+            "Scholar Id", "Name", "Class", "Address"
         ])
         self.table.setEditTriggers(QTableWidget.NoEditTriggers)
+        self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        self.table.verticalHeader().setVisible(False)
+        self.table.setAlternatingRowColors(True)
         layout.addWidget(self.table)
 
         # Buttons
