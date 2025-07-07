@@ -1,5 +1,3 @@
-# school-management-app/src/views/student_details_dialog.py
-
 from PyQt5.QtWidgets import (
     QDialog, QVBoxLayout, QLineEdit, QPushButton, QLabel, QHBoxLayout,
     QComboBox, QTextEdit, QDateEdit, QCheckBox, QScrollArea, QWidget,
@@ -7,28 +5,26 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtGui import QRegExpValidator
 from PyQt5.QtCore import QDate, QRegExp, Qt
-import mysql # Import Qt for alignment
+import mysql
 
-from models.student import Student # Import the Student model
-from controllers.student_controller import StudentDBManager # We will need this for delete
+from models.student import Student
+from controllers.student_controller import StudentDBManager
 
 class StudentDetailsDialog(QDialog):
     def __init__(self, parent=None, student: Student = None, mode='view'):
         super().__init__(parent)
-        self.student = student # Store the student object
-        self.student_db_manager = StudentDBManager() # For delete operation
-        self.current_mode = mode # 'view' or 'edit'
+        self.student = student
+        self.student_db_manager = StudentDBManager()
+        self.current_mode = mode
 
         self.setWindowTitle("Student Details")
         self.setFixedWidth(450)
         self.setFixedHeight(550)
 
-        self.original_geometry = None # To save geometry before hiding for re-show
+        self.original_geometry = None
 
-        # Main layout for dialog
         dialog_layout = QVBoxLayout(self)
 
-        # Scroll area setup
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll_content = QWidget()
@@ -97,40 +93,36 @@ class StudentDetailsDialog(QDialog):
         self.delete_btn = QPushButton("Delete")
         self.save_btn = QPushButton("Save")
         self.cancel_btn = QPushButton("Cancel")
-        self.close_btn = QPushButton("Close") # New button for view mode close
+        self.close_btn = QPushButton("Close")
 
         self.btn_layout.addWidget(self.edit_btn)
         self.btn_layout.addWidget(self.delete_btn)
-        self.btn_layout.addStretch(1) # Push buttons to the left
+        self.btn_layout.addStretch(1)
         self.btn_layout.addWidget(self.save_btn)
         self.btn_layout.addWidget(self.cancel_btn)
         self.btn_layout.addWidget(self.close_btn)
         dialog_layout.addLayout(self.btn_layout)
         self.setLayout(dialog_layout)
 
-        # Connect buttons
-        self.edit_btn.clicked.connect(self.set_edit_mode)
-        self.delete_btn.clicked.connect(self.delete_student)
-        self.save_btn.clicked.connect(self.validate_and_accept)
-        self.cancel_btn.clicked.connect(self.set_view_mode) # Return to view mode on cancel
-        self.close_btn.clicked.connect(self.close) # Close the dialog
+        self.edit_btn.clicked.connect(lambda: (self.set_edit_mode(), self.edit_btn.setFocusPolicy(Qt.NoFocus)))
+        self.delete_btn.clicked.connect(lambda: (self.delete_student(), self.delete_btn.setFocusPolicy(Qt.NoFocus)))
+        self.save_btn.clicked.connect(lambda: (self.validate_and_accept(), self.save_btn.setFocusPolicy(Qt.NoFocus)))
+        self.cancel_btn.clicked.connect(lambda: (self.set_view_mode(), self.cancel_btn.setFocusPolicy(Qt.NoFocus)))
+        self.close_btn.clicked.connect(lambda: (self.close(), self.close_btn.setFocusPolicy(Qt.NoFocus)))
 
-        # Required fields for validation
         self.required_fields = ["scholar_id", "name"]
 
-        # Initialize dialog state
         if student:
             self._populate_fields(student)
             if mode == 'view':
                 self.set_view_mode()
-            else: # Default to edit if no mode or 'edit' explicitly
+            else:
                 self.set_edit_mode()
-        else: # For adding a new student
+        else:
             self.set_add_mode()
             self.setWindowTitle("Add New Student")
 
     def _populate_fields(self, student: Student):
-        """Populates the form fields with student data."""
         for key, widget in self.fields.items():
             value = getattr(student, key, None)
             
@@ -160,25 +152,25 @@ class StudentDetailsDialog(QDialog):
         self.current_mode = 'view'
         self.setWindowTitle(f"Student Details: {self.student.name}" if self.student and self.student.name else "Student Details")
         for key, widget in self.fields.items():
-            if key == "scholar_id": # Always read-only for existing students
+            if key == "scholar_id":
                 widget.setReadOnly(True)
             elif isinstance(widget, QLineEdit) or isinstance(widget, QTextEdit):
                 widget.setReadOnly(True)
             elif isinstance(widget, QComboBox) or isinstance(widget, QDateEdit) or isinstance(widget, QCheckBox):
-                widget.setEnabled(False) # Disable for view mode
+                widget.setEnabled(False)
         
         self.edit_btn.setVisible(True)
         self.delete_btn.setVisible(True)
         self.save_btn.setVisible(False)
         self.cancel_btn.setVisible(False)
         self.close_btn.setVisible(True)
-        self.adjustSize() # Adjust dialog size if widgets enable/disable affects it
+        self.adjustSize()
 
     def set_edit_mode(self):
         self.current_mode = 'edit'
         self.setWindowTitle(f"Edit Student: {self.student.name}" if self.student and self.student.name else "Edit Student")
         for key, widget in self.fields.items():
-            if key == "scholar_id": # Only allow editing if adding a new student
+            if key == "scholar_id":
                  widget.setReadOnly(self.student is not None and self.student.scholar_id is not None)
             elif isinstance(widget, QLineEdit) or isinstance(widget, QTextEdit):
                 widget.setReadOnly(False)
@@ -189,7 +181,7 @@ class StudentDetailsDialog(QDialog):
         self.delete_btn.setVisible(False)
         self.save_btn.setVisible(True)
         self.cancel_btn.setVisible(True)
-        self.close_btn.setVisible(False) # Close button not needed in edit mode, use cancel
+        self.close_btn.setVisible(False)
         self.adjustSize()
 
     def set_add_mode(self):
@@ -198,15 +190,15 @@ class StudentDetailsDialog(QDialog):
         for key, widget in self.fields.items():
             if isinstance(widget, QLineEdit) or isinstance(widget, QTextEdit):
                 widget.setReadOnly(False)
-                widget.clear() # Clear fields for new entry
+                widget.clear()
             elif isinstance(widget, QComboBox) or isinstance(widget, QDateEdit) or isinstance(widget, QCheckBox):
                 widget.setEnabled(True)
-            if isinstance(widget, QDateEdit): # Reset dates to current for new entry
+            if isinstance(widget, QDateEdit):
                 widget.setDate(QDate.currentDate())
             if isinstance(widget, QCheckBox):
-                widget.setChecked(False) # Uncheck for new entry
+                widget.setChecked(False)
 
-        self.fields["scholar_id"].setReadOnly(False) # Scholar ID is editable for new student
+        self.fields["scholar_id"].setReadOnly(False)
 
         self.edit_btn.setVisible(False)
         self.delete_btn.setVisible(False)
@@ -216,7 +208,6 @@ class StudentDetailsDialog(QDialog):
         self.adjustSize()
 
     def get_data(self) -> Student:
-        """Collects data from the dialog fields and returns a Student object."""
         data = {}
         for key, widget in self.fields.items():
             if isinstance(widget, QLineEdit):
@@ -235,8 +226,6 @@ class StudentDetailsDialog(QDialog):
             elif isinstance(widget, QCheckBox):
                 data[key] = widget.isChecked()
         
-        # Ensure 'class' from dialog is mapped to 'class_name' for the Student model
-        # The dialog fields are already keyed with 'class_name'
         return Student(**data)
 
     def validate_and_accept(self):
@@ -259,12 +248,11 @@ class StudentDetailsDialog(QDialog):
             QMessageBox.warning(self, "Missing Fields", f"Please fill in the following required fields:\n- " + "\n- ".join(missing))
             return
         
-        # If in edit mode, update self.student and then accept
         if self.current_mode == 'edit':
-            self.student = self.get_data() # Update the internal student object
-            self.accept() # Accept the dialog with result
+            self.student = self.get_data()
+            self.accept()
         elif self.current_mode == 'add':
-            self.accept() # For 'add' mode, just accept, new_student will be got by caller
+            self.accept()
 
     def delete_student(self):
         if not self.student or not self.student.scholar_id:
@@ -282,7 +270,7 @@ class StudentDetailsDialog(QDialog):
             try:
                 self.student_db_manager.delete_student(scholar_id_to_delete)
                 QMessageBox.information(self, "Success", f"Student {student_name} deleted successfully.")
-                self.accept() # Close the dialog with QDialog.Accepted indicating successful operation
+                self.accept()
             except mysql.connector.Error as err:
                 QMessageBox.critical(self, "Database Error", f"Error deleting student: {err}")
             except Exception as e:

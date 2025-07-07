@@ -19,19 +19,15 @@ class StudentSection(QWidget):
         title.setStyleSheet("font-size: 20px; font-weight: bold;")
         layout.addWidget(title)
 
-        search_controls_layout = QHBoxLayout() # New layout for search elements
+        search_layout = QHBoxLayout()
         self.search_input = QLineEdit()
         self.search_input.setPlaceholderText("Search by name or ID")
         search_btn = QPushButton("Search")
-        search_btn.clicked.connect(self.search_students)
+        search_btn.clicked.connect(lambda: (self.search_students(), search_btn.setFocusPolicy(Qt.NoFocus)))
         
-        self.clear_search_btn = QPushButton("Clear Search")
-        self.clear_search_btn.clicked.connect(self.clear_search)
-        
-        search_controls_layout.addWidget(self.search_input)
-        search_controls_layout.addWidget(search_btn)
-        search_controls_layout.addWidget(self.clear_search_btn) # Add clear button
-        layout.addLayout(search_controls_layout)
+        search_layout.addWidget(self.search_input)
+        search_layout.addWidget(search_btn)
+        layout.addLayout(search_layout)
 
         self.search_status_label = QLabel("")
         self.search_status_label.setStyleSheet("font-style: italic; color: gray;")
@@ -55,42 +51,45 @@ class StudentSection(QWidget):
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         self.table.verticalHeader().setVisible(False)
         self.table.setAlternatingRowColors(True)
-        layout.addWidget(self.table)
+        layout.addWidget(self.table, 1)
 
-        btn_layout = QHBoxLayout()
+        bottom_buttons_layout = QHBoxLayout()
         add_btn = QPushButton("Add Student")
-        add_btn.clicked.connect(self.add_student)
-        btn_layout.addWidget(add_btn)
-        btn_layout.addStretch(1)
-        layout.addLayout(btn_layout)
+        add_btn.clicked.connect(lambda: (self.add_student(), add_btn.setFocusPolicy(Qt.NoFocus)))
+        
+        self.clear_search_btn = QPushButton("Clear Search")
+        self.clear_search_btn.clicked.connect(lambda: (self.clear_search(), self.clear_search_btn.setFocusPolicy(Qt.NoFocus)))
+        self.clear_search_btn.setVisible(False)
 
-        layout.addStretch(1)
+        bottom_buttons_layout.addWidget(add_btn)
+        bottom_buttons_layout.addStretch(1)
+        bottom_buttons_layout.addWidget(self.clear_search_btn)
+        
+        layout.addLayout(bottom_buttons_layout)
+
         self.setLayout(layout)
 
         self.load_students()
 
     def load_students(self, students=None):
-        """
-        Loads students into the table. If 'students' argument is None,
-        it fetches all students. Otherwise, it displays the provided list.
-        """
+        
         self.table.setRowCount(0)
         
         if students is None:
             try:
                 students = self.student_db_manager.get_all_students()
-                self.search_status_label.setText("")
+                self.search_status_label.setText(f"")
+                self.clear_search_btn.setVisible(False)
             except mysql.connector.Error as err:
                 QMessageBox.critical(self, "Database Error", f"Error loading students: {err}")
                 return
             except Exception as e:
                 QMessageBox.critical(self, "Application Error", f"An unexpected error occurred: {e}")
                 return
-
-        if self.search_input.text().strip():
-             self.search_status_label.setText(f"Showing {len(students)} search results.")
+            
         else:
-            self.search_status_label.setText(f"Showing all {len(students)} students.")
+            self.search_status_label.setText(f"Showing {len(students)} search results.")
+            self.clear_search_btn.setVisible(True)
 
 
         for row_idx, student in enumerate(students):
@@ -127,7 +126,6 @@ class StudentSection(QWidget):
             QMessageBox.critical(self, "Application Error", f"An unexpected error occurred: {e}")
 
     def clear_search(self):
-        """Clears the search input and reloads all students."""
         self.search_input.clear()
         self.load_students()
 
