@@ -1,4 +1,5 @@
 from PyQt5.QtWidgets import QDialog, QVBoxLayout, QLineEdit, QPushButton, QLabel, QHBoxLayout, QComboBox, QTextEdit
+from PyQt5.QtGui import QIntValidator
 
 class StudentDialog(QDialog):
     def __init__(self, parent=None, student=None):
@@ -7,7 +8,11 @@ class StudentDialog(QDialog):
         self.setFixedWidth(400)
         layout = QVBoxLayout()
 
-        # Field definitions
+        # Fields that must be integers
+        int_fields = [
+            "scholar_id", "apaar_id", "permanent_enrollment_number", "tc_number", "contact", "alternate_contact"
+        ]
+
         self.fields = {
             "scholar_id": QLineEdit(),
             "apaar_id": QLineEdit(),
@@ -32,6 +37,11 @@ class StudentDialog(QDialog):
         }
 
         self.fields["gender"].addItems(["Male", "Female", "Other"])
+
+        # Set integer validators
+        int_validator = QIntValidator(0, 9223372036854775807, self)
+        for key in int_fields:
+            self.fields[key].setValidator(int_validator)
 
         for key, widget in self.fields.items():
             label = QLabel(key.replace("_", " ").title() + ":")
@@ -65,7 +75,12 @@ class StudentDialog(QDialog):
         data = {}
         for key, widget in self.fields.items():
             if isinstance(widget, QLineEdit):
-                data[key] = widget.text()
+                text = widget.text()
+                # Convert to int if field is supposed to be int and not empty
+                if key in ["scholar_id", "apaar_id", "permanent_enrollment_number", "tc_number", "contact", "alternate_contact"]:
+                    data[key] = int(text) if text else None
+                else:
+                    data[key] = text
             elif isinstance(widget, QTextEdit):
                 data[key] = widget.toPlainText()
             elif isinstance(widget, QComboBox):
