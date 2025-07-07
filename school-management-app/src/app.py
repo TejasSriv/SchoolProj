@@ -68,7 +68,10 @@ class MainWindow(QMainWindow):
         username = self.username_input.text()
         password = self.password_input.text()
         if check_user_credentials(username, password):
-            self.dashboard = AdminDashboard(username)
+            self.dashboard = AdminDashboard(
+                username,
+                self.geometry()
+            )
             self.dashboard.show()
             self.hide()
         else:
