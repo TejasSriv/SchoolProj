@@ -25,11 +25,9 @@ class StudentSection(QWidget):
 
         # Table for students
         self.table = QTableWidget()
-        self.table.setColumnCount(20)
+        self.table.setColumnCount(4)
         self.table.setHorizontalHeaderLabels([
-            "scholar_id", "apaar_id", "permanent_enrollment_number", "name", "class", "dob", "gender",
-            "social_category", "father", "mother", "last_school", "tc_number", "address", "city", "state",
-            "contact", "alternate_contact", "email", "aadhaar", "birth_certificate"
+            "scholar_id", "name", "class", "address"
         ])
         self.table.setEditTriggers(QTableWidget.NoEditTriggers)
         layout.addWidget(self.table)
@@ -57,14 +55,10 @@ class StudentSection(QWidget):
         self.table.setRowCount(0)
         conn = get_connection()
         cursor = conn.cursor(dictionary=True)
-        cursor.execute("SELECT * FROM students")
+        cursor.execute("SELECT scholar_id, name, class, address FROM students")
         for row_idx, row_data in enumerate(cursor.fetchall()):
             self.table.insertRow(row_idx)
-            for col_idx, key in enumerate([
-                "scholar_id", "apaar_id", "permanent_enrollment_number", "name", "class", "dob", "gender",
-                "social_category", "father", "mother", "last_school", "tc_number", "address", "city", "state",
-                "contact", "alternate_contact", "email", "aadhaar", "birth_certificate"
-            ]):
+            for col_idx, key in enumerate(["scholar_id", "name", "class", "address"]):
                 self.table.setItem(row_idx, col_idx, QTableWidgetItem(str(row_data.get(key, ""))))
         cursor.close()
         conn.close()
@@ -73,13 +67,13 @@ class StudentSection(QWidget):
         keyword = self.search_input.text()
         self.table.setRowCount(0)
         conn = get_connection()
-        cursor = conn.cursor()
-        query = "SELECT scholar_id, name, class FROM students WHERE name LIKE %s OR id LIKE %s"
+        cursor = conn.cursor(dictionary=True)
+        query = "SELECT scholar_id, name, class, address FROM students WHERE name LIKE %s OR scholar_id LIKE %s"
         cursor.execute(query, (f"%{keyword}%", f"%{keyword}%"))
         for row_idx, row_data in enumerate(cursor.fetchall()):
             self.table.insertRow(row_idx)
-            for col_idx, value in enumerate(row_data):
-                self.table.setItem(row_idx, col_idx, QTableWidgetItem(str(value)))
+            for col_idx, key in enumerate(["scholar_id", "name", "class", "address"]):
+                self.table.setItem(row_idx, col_idx, QTableWidgetItem(str(row_data.get(key, ""))))
         cursor.close()
         conn.close()
 
