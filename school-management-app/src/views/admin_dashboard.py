@@ -1,4 +1,5 @@
-# school-management-app/src/views/admin_dashboard.py
+import os
+from PyQt5.QtGui import QIcon, QPixmap
 
 from PyQt5.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QStackedWidget, QMessageBox, QFrame # QFrame added for sidebar
@@ -9,10 +10,9 @@ from views.student_section import StudentSection
 from views.student_detail_view import StudentDetailView # <-- NEW IMPORT
 
 class AdminDashboard(QMainWindow):
-    def __init__(self, username, geometry=None):
+    def __init__(self, username, geometry=None, app_window_icon=None):
         super().__init__()
-        # Set dynamic title from the start
-        self.setWindowTitle(f"Admin Dashboard - Welcome {username}") 
+        self.setWindowTitle(f"Admin Dashboard") 
         
         if geometry:
             self.setGeometry(geometry)
@@ -25,16 +25,17 @@ class AdminDashboard(QMainWindow):
         main_widget.setLayout(main_layout)
         self.setCentralWidget(main_widget)
 
-        # Sidebar as a QFrame for styling (consistent with your original style)
-        self.sidebar_widget = QFrame() # Renamed back to sidebar_widget
+        self.sidebar_widget = QFrame()
         self.sidebar_widget.setFixedWidth(180)
         self.sidebar_widget.setStyleSheet("""
-            QFrame { /* Apply to the frame itself */
-                background-color: #232946;
+            QFrame {
+                background-color: #ffcb06;
+                border-top-left-radius: 12px;
+                border-bottom-left-radius: 12px;
                 border-top-right-radius: 12px;
                 border-bottom-right-radius: 12px;
             }
-            QPushButton { /* Apply to all QPushButtons inside this QFrame */
+            QPushButton {
                 color: #eebbc3;
                 background: transparent;
                 border: none;
@@ -46,7 +47,7 @@ class AdminDashboard(QMainWindow):
                 background-color: #393e6a;
                 border-radius: 6px;
             }
-            QPushButton#logoutBtn { /* Specific style for logout button by object name */
+            QPushButton#logoutBtn {
                 color: #ffadad;
             }
         """)
@@ -55,30 +56,49 @@ class AdminDashboard(QMainWindow):
         sidebar_layout.setAlignment(Qt.AlignTop)
         self.sidebar_widget.setLayout(sidebar_layout)
 
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        logo_path = os.path.join(script_dir, '../..', 'resources', 'logo.png')
+        app_icon = QIcon(logo_path)
+        if not app_icon.isNull():
+            self.setWindowIcon(app_icon)
+        else:
+            print(f"Warning: Could not load window icon from {logo_path}")
+
+        try:
+            pixmap = QPixmap(logo_path)
+            if pixmap.isNull():
+                print(f"Error: Could not load logo image from {logo_path}")
+                logo_label = QLabel("Logo Missing")
+            else:
+                scaled_pixmap = pixmap.scaled(100, 100, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+                logo_label = QLabel()
+                logo_label.setPixmap(scaled_pixmap)
+                logo_label.setAlignment(Qt.AlignCenter)
+                logo_label.setFixedSize(100, 100)
+        except Exception as e:
+            print(f"Error loading logo: {e}")
+            logo_label = QLabel("Logo Error")
+
         # Logo or title
-        self.app_logo_label = QLabel("SCHOOL") # Made an attribute for potential dynamic changes
-        self.app_logo_label.setStyleSheet("color: #eebbc3; font-size: 22px; font-weight: bold; letter-spacing: 2px;")
+        self.app_logo_label = logo_label
         self.app_logo_label.setAlignment(Qt.AlignCenter)
-        sidebar_layout.addWidget(self.app_logo_label)
+        sidebar_layout.addWidget(self.app_logo_label, alignment=Qt.AlignCenter)
         sidebar_layout.addSpacing(10)
 
-        # Sidebar buttons with modern style (using self. prefix for consistency and access)
         self.btn_dashboard = QPushButton("🏠  Dashboard")
         self.btn_students = QPushButton("👨‍🎓  Students")
         self.btn_teachers = QPushButton("👩‍🏫  Teachers")
         self.btn_logout = QPushButton("🚪  Logout")
-        self.btn_logout.setObjectName("logoutBtn") # Set object name for specific styling
+        self.btn_logout.setObjectName("logoutBtn")
 
         sidebar_layout.addWidget(self.btn_dashboard)
         sidebar_layout.addWidget(self.btn_students)
         sidebar_layout.addWidget(self.btn_teachers)
-        sidebar_layout.addStretch(1) # Pushes buttons to top, logout to bottom
+        sidebar_layout.addStretch(1)
         sidebar_layout.addWidget(self.btn_logout)
 
-        # Content area (stacked widget for switching screens)
-        self.stack = QStackedWidget() # Keeping your original 'self.stack' name
+        self.stack = QStackedWidget()
         
-        # --- Initialize and add views to QStackedWidget ---
 
         # 0. Dashboard placeholder
         dashboard_label = QLabel(f"Welcome, {username}! This is the admin dashboard.")
