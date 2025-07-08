@@ -288,7 +288,7 @@ class StudentDetailView(QWidget):
                 self.student_db_manager.add_student(new_student)
                 QMessageBox.information(self, "Success", "Student added successfully.")
             elif self.current_mode == 'edit':
-                self.student_db_manager.update_student(self.student.scholar_id, new_student)
+                self.student_db_manager.update_student(new_student)
                 QMessageBox.information(self, "Success", f"Student {new_student.name} updated successfully.")
             
             self.student_saved.emit()
