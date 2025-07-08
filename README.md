@@ -13,19 +13,27 @@ This is a cross-platform school management application built in Python. The appl
 ## Project Structure
 
 ```
-school-management-app
-├── src
-│   ├── app.py
-│   ├── controllers
-│   │   └── __init__.py
-│   ├── models
-│   │   └── __init__.py
-│   ├── views
-│   │   └── __init__.py
-│   └── utils
-│       └── __init__.py
-├── requirements.txt
-├── setup.py
+SchoolProj
+├──school-management-app
+│   ├── src
+│   │   ├── app.py
+│   │   ├── controllers
+│   │   │   ├── __init__.py
+│   │   │   ├── auth.py
+│   │   │   ├── db.py
+│   │   │   └── student_controller.py
+│   │   ├── models
+│   │   │   ├── __init__.py
+│   │   │   └── student.py
+│   │   ├── views
+│   │   │   ├── __init__.py
+│   │   │   ├── admin_dashboard.py
+│   │   │   ├── student_detail_view.py
+│   │   │   └── student_section.py
+│   │   └── utils
+│   │       └── __init__.py
+│   ├── requirements.txt
+│   ├── setup.py
 └── README.md
 ```
 
