@@ -64,7 +64,11 @@ class StudentSection(QWidget):
         self.clear_search_btn.clicked.connect(lambda: (self.clear_search(), self.clear_search_btn.setFocusPolicy(Qt.NoFocus)))
         self.clear_search_btn.setVisible(False)
 
+        self.refresh_btn = QPushButton("Refresh List")
+        self.refresh_btn.clicked.connect(lambda: (self.load_students(), self.refresh_btn.setFocusPolicy(Qt.NoFocus)))
+
         bottom_buttons_layout.addWidget(add_btn)
+        bottom_buttons_layout.addWidget(self.refresh_btn)
         bottom_buttons_layout.addStretch(1)
         bottom_buttons_layout.addWidget(self.clear_search_btn)
         
@@ -82,6 +86,7 @@ class StudentSection(QWidget):
             try:
                 students = self.student_db_manager.get_all_students()
                 self.search_status_label.setText(f"")
+                self.search_input.clear()
                 self.clear_search_btn.setVisible(False)
             except mysql.connector.Error as err:
                 QMessageBox.critical(self, "Database Error", f"Error loading students: {err}")
