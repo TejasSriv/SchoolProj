@@ -64,7 +64,7 @@ class StudentSection(QWidget):
         self.clear_search_btn.clicked.connect(lambda: (self.clear_search(), self.clear_search_btn.setFocusPolicy(Qt.NoFocus)))
         self.clear_search_btn.setVisible(False)
 
-        self.refresh_btn = QPushButton("Refresh List")
+        self.refresh_btn = QPushButton("Refresh")
         self.refresh_btn.clicked.connect(lambda: (self.load_students(), self.refresh_btn.setFocusPolicy(Qt.NoFocus)))
 
         bottom_buttons_layout.addWidget(add_btn)

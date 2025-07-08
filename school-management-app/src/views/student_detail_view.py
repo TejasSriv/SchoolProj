@@ -1,6 +1,7 @@
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QLineEdit, QPushButton, QLabel, QHBoxLayout,
-    QComboBox, QTextEdit, QDateEdit, QCheckBox, QScrollArea, QMessageBox
+    QComboBox, QTextEdit, QDateEdit, QCheckBox, QScrollArea, QMessageBox,
+    QFormLayout, QGroupBox
 )
 from PyQt5.QtGui import QRegExpValidator
 from PyQt5.QtCore import QDate, QRegExp, Qt, pyqtSignal
@@ -8,6 +9,7 @@ from PyQt5.QtCore import QDate, QRegExp, Qt, pyqtSignal
 import mysql.connector
 from models.student import Student
 from controllers.student_controller import StudentDBManager
+import datetime
 
 class StudentDetailView(QWidget):
 
@@ -18,6 +20,7 @@ class StudentDetailView(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.student = None
+        self.original_student_data = None
         self.student_db_manager = StudentDBManager()
         self.current_mode = 'view'
 
@@ -26,8 +29,10 @@ class StudentDetailView(QWidget):
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll_content = QWidget()
-        form_layout = QVBoxLayout(scroll_content)
-        form_layout.setAlignment(Qt.AlignTop)
+        form_layout = QFormLayout(scroll_content)
+        form_layout.setContentsMargins(20, 20, 20, 20)
+        form_layout.setHorizontalSpacing(20)
+        form_layout.setVerticalSpacing(15)
 
         int_fields = [
             "scholar_id", "apaar_id", "permanent_enrollment_number", "tc_number", "contact", "alternate_contact"
@@ -38,7 +43,7 @@ class StudentDetailView(QWidget):
             "apaar_id": QLineEdit(),
             "permanent_enrollment_number": QLineEdit(),
             "name": QLineEdit(),
-            "class_name": QLineEdit(),
+            "class_name": QComboBox(),
             "dob": QDateEdit(),
             "gender": QComboBox(),
             "social_category": QComboBox(),
@@ -53,17 +58,19 @@ class StudentDetailView(QWidget):
             "contact": QLineEdit(),
             "alternate_contact": QLineEdit(),
             "email": QLineEdit(),
-            "aadhaar": QCheckBox("Has Aadhaar?"),
-            "birth_certificate": QCheckBox("Has Birth Certificate?")
+            "aadhaar": QCheckBox(""),
+            "birth_certificate": QCheckBox("")
         }
 
         self.fields["gender"].addItems(["Male", "Female", "Other"])
         self.fields["social_category"].addItems(["General", "SC", "ST", "OBC", "Other"])
+        self.fields["class_name"].addItems(["Nursery", "LKG", "UKG", "1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th", "9th", "10th", "11th", "12th"])
         
         for key in ["dob", "admission_date"]:
             self.fields[key].setCalendarPopup(True)
             self.fields[key].setDisplayFormat("dd-MM-yyyy")
             self.fields[key].setDate(QDate.currentDate())
+            self.fields[key].setMaximumDate(QDate.currentDate())
 
         digit_validator = QRegExpValidator(QRegExp(r'^\d{0,20}$'), self)
         for key in int_fields:
@@ -71,85 +78,94 @@ class StudentDetailView(QWidget):
             self.fields[key].setMaxLength(20)
 
         for key, widget in self.fields.items():
+            label_text = key.replace("_", " ").title()
+            if key == "class_name":
+                label_text = "Class"
+            elif key == "aadhaar":
+                label_text = "Aadhaar Card Submitted?"
+            elif key == "birth_certificate":
+                label_text = "Birth Certificate Submitted?"
+            
             if isinstance(widget, QCheckBox):
-                form_layout.addWidget(widget)
+                form_layout.addRow(QLabel(label_text + ":"), widget)
+            elif isinstance(widget, QTextEdit):
+                widget.setFixedHeight(60)
+                form_layout.addRow(QLabel(label_text + ":"), widget)
             else:
-                label_text = key.replace("_", " ").title()
-                if key == "class_name":
-                    label_text = "Class:"
-                label = QLabel(label_text)
-                form_layout.addWidget(label)
-                form_layout.addWidget(widget)
+                form_layout.addRow(QLabel(label_text + ":"), widget)
 
+        details_group = QGroupBox("Student Information")
+        details_group.setLayout(form_layout)
         scroll_content.setLayout(form_layout)
         scroll.setWidget(scroll_content)
         main_layout.addWidget(scroll)
 
         self.btn_layout = QHBoxLayout()
-        self.back_btn = QPushButton("Back to List")
         self.edit_btn = QPushButton("Edit")
         self.delete_btn = QPushButton("Delete")
         self.save_btn = QPushButton("Save")
-        self.cancel_btn = QPushButton("Cancel")
+        self.action_cancel_btn = QPushButton("Back")
 
-        self.btn_layout.addWidget(self.back_btn)
         self.btn_layout.addStretch(1)
         self.btn_layout.addWidget(self.edit_btn)
         self.btn_layout.addWidget(self.delete_btn)
         self.btn_layout.addWidget(self.save_btn)
-        self.btn_layout.addWidget(self.cancel_btn)
+        self.btn_layout.addWidget(self.action_cancel_btn)
+        self.btn_layout.addStretch(1)
         main_layout.addLayout(self.btn_layout)
 
-        self.back_btn.clicked.connect(lambda: (self.back_to_list.emit(), self.back_btn.setFocusPolicy(Qt.NoFocus)))
         self.edit_btn.clicked.connect(lambda: (self.set_edit_mode(), self.edit_btn.setFocusPolicy(Qt.NoFocus)))
         self.delete_btn.clicked.connect(lambda: (self.delete_student(), self.delete_btn.setFocusPolicy(Qt.NoFocus)))
         self.save_btn.clicked.connect(lambda: (self.save_student_data(), self.save_btn.setFocusPolicy(Qt.NoFocus)))
-        self.cancel_btn.clicked.connect(lambda: (self.set_view_mode(), self.cancel_btn.setFocusPolicy(Qt.NoFocus)))
+        self.action_cancel_btn.clicked.connect(lambda: (self.handle_cancel_or_back(), self.action_cancel_btn.setFocusPolicy(Qt.NoFocus)))
 
         self.required_fields = ["scholar_id", "name"]
 
     def set_student(self, student: Student = None, mode='view'):
-        
+
         self.student = student
         self.current_mode = mode
 
-        if self.student:
-            self._populate_fields(self.student)
-            if mode == 'view':
-                self.set_view_mode()
-            elif mode == 'edit':
-                self.set_edit_mode()
+        if self.current_mode != 'add':
+            self.original_student_data = student
+            if student:
+                self._populate_fields(student)
             else:
-                 self.set_add_mode()
+                self.clear_fields()
         else:
-            self.set_add_mode()
+            self.original_student_data = None
+            self.clear_fields()
 
-    def _populate_fields(self, student: Student):
+        if self.current_mode == 'view':
+            self.set_view_mode()
+        elif self.current_mode == 'edit':
+            self.set_edit_mode()
+        elif self.current_mode == 'add':
+            self.set_add_mode()
         
+    def _populate_fields(self, student: Student):
+        self.clear_fields()
+
         for key, widget in self.fields.items():
             value = getattr(student, key, None)
             
-            if value is None:
-                if isinstance(widget, QLineEdit) or isinstance(widget, QTextEdit):
-                    widget.clear()
-                elif isinstance(widget, QComboBox):
-                    widget.setCurrentIndex(0)
-                elif isinstance(widget, QDateEdit):
-                    widget.setDate(QDate.currentDate())
-                elif isinstance(widget, QCheckBox):
-                    widget.setChecked(False)
-                continue
-
+            if key == "class_name" and hasattr(student, 'class_name'):
+                value = student.class_name
+            
             if isinstance(widget, QLineEdit):
-                widget.setText(str(value))
+                widget.setText(str(value) if value is not None else "")
             elif isinstance(widget, QTextEdit):
-                widget.setPlainText(str(value))
+                widget.setPlainText(str(value) if value is not None else "")
             elif isinstance(widget, QComboBox):
                 idx = widget.findText(str(value))
                 if idx >= 0:
                     widget.setCurrentIndex(idx)
+                else:
+                    widget.setCurrentIndex(0)
             elif isinstance(widget, QDateEdit):
-                if isinstance(value, QDate):
+                if isinstance(value, datetime.date):
+                    widget.setDate(QDate(value.year, value.month, value.day))
+                elif isinstance(value, QDate):
                     widget.setDate(value)
                 elif isinstance(value, (str, bytes)):
                     date_str = value.decode('utf-8') if isinstance(value, bytes) else value
@@ -158,76 +174,91 @@ class StudentDetailView(QWidget):
                         widget.setDate(qdate)
                     else:
                         widget.setDate(QDate.currentDate())
+                else:
+                    widget.setDate(QDate.currentDate())
             elif isinstance(widget, QCheckBox):
                 widget.setChecked(bool(value))
+    
+    def clear_fields(self):
+        for key, widget in self.fields.items():
+            if isinstance(widget, QLineEdit) or isinstance(widget, QTextEdit):
+                widget.clear()
+            elif isinstance(widget, QComboBox):
+                widget.setCurrentIndex(0)
+            elif isinstance(widget, QDateEdit):
+                widget.setDate(QDate.currentDate())
+            elif isinstance(widget, QCheckBox):
+                widget.setChecked(False)
 
     def set_view_mode(self):
         self.current_mode = 'view'
         
+        window_title = "Student Details"
         if self.student and self.student.name:
-            self.parent().setWindowTitle(f"Student Details: {self.student.name}")
-        else:
-            self.parent().setWindowTitle("Student Details")
+            window_title = f"Student Details: {self.student.name}"
+        self.parent().setWindowTitle(window_title)
 
         for key, widget in self.fields.items():
-            if key == "scholar_id" and self.student:
+            if key == "scholar_id":
                 widget.setReadOnly(True)
             elif isinstance(widget, QLineEdit) or isinstance(widget, QTextEdit):
                 widget.setReadOnly(True)
             elif isinstance(widget, QComboBox) or isinstance(widget, QDateEdit) or isinstance(widget, QCheckBox):
                 widget.setEnabled(False)
         
-        self.back_btn.setVisible(True)
+        self.action_cancel_btn.setText("Back")
+        self.action_cancel_btn.setVisible(True)
         self.edit_btn.setVisible(True)
         self.delete_btn.setVisible(True)
         self.save_btn.setVisible(False)
-        self.cancel_btn.setVisible(False)
 
     def set_edit_mode(self):
         self.current_mode = 'edit'
+        
+        window_title = "Edit Student"
         if self.student and self.student.name:
-            self.parent().setWindowTitle(f"Edit Student: {self.student.name}")
-        else:
-            self.parent().setWindowTitle("Edit Student")
+            window_title = f"Edit Student: {self.student.name}"
+        self.parent().setWindowTitle(window_title)
 
         for key, widget in self.fields.items():
             if key == "scholar_id":
-                 widget.setReadOnly(self.student is not None and self.student.scholar_id is not None)
+                 widget.setReadOnly(True)
             elif isinstance(widget, QLineEdit) or isinstance(widget, QTextEdit):
                 widget.setReadOnly(False)
             elif isinstance(widget, QComboBox) or isinstance(widget, QDateEdit) or isinstance(widget, QCheckBox):
                 widget.setEnabled(True)
         
-        self.back_btn.setVisible(False)
+        self.action_cancel_btn.setText("Cancel")
+        self.action_cancel_btn.setVisible(True)
         self.edit_btn.setVisible(False)
         self.delete_btn.setVisible(False)
         self.save_btn.setVisible(True)
-        self.cancel_btn.setVisible(True)
 
     def set_add_mode(self):
         self.current_mode = 'add'
         self.parent().setWindowTitle("Add New Student")
+        
+        self.clear_fields()
+        
         for key, widget in self.fields.items():
             if isinstance(widget, QLineEdit) or isinstance(widget, QTextEdit):
                 widget.setReadOnly(False)
-                widget.clear()
             elif isinstance(widget, QComboBox) or isinstance(widget, QDateEdit) or isinstance(widget, QCheckBox):
                 widget.setEnabled(True)
             if isinstance(widget, QDateEdit):
                 widget.setDate(QDate.currentDate())
-            if isinstance(widget, QCheckBox):
-                widget.setChecked(False)
 
         self.fields["scholar_id"].setReadOnly(False)
+        self.fields["scholar_id"].setPlaceholderText("Enter Scholar ID (optional, leave blank for auto-generate)")
 
-        self.back_btn.setVisible(False)
+
+        self.action_cancel_btn.setText("Cancel")
+        self.action_cancel_btn.setVisible(True)
         self.edit_btn.setVisible(False)
         self.delete_btn.setVisible(False)
         self.save_btn.setVisible(True)
-        self.cancel_btn.setVisible(True)
 
     def get_data_from_fields(self) -> Student:
-        """Collects data from the form fields and returns a Student object."""
         data = {}
         for key, widget in self.fields.items():
             if isinstance(widget, QLineEdit):
@@ -236,7 +267,8 @@ class StudentDetailView(QWidget):
                     try:
                         data[key] = int(text) if text else None
                     except ValueError:
-                        data[key] = None
+                        QMessageBox.warning(self, "Invalid Input", f"{key.replace('_', ' ').title()} must be a valid number.")
+                        return None
                 else:
                     data[key] = text if text else None
             elif isinstance(widget, QTextEdit):
@@ -249,55 +281,67 @@ class StudentDetailView(QWidget):
             elif isinstance(widget, QCheckBox):
                 data[key] = widget.isChecked()
         
+        if 'class_name' in data and data['class_name'] == "None":
+            data['class_name'] = None
+            
+        if not data.get("name"):
+            QMessageBox.warning(self, "Validation", "Student Name cannot be empty.")
+            return None
+
         return Student(**data)
 
-    def validate_input(self, student_data: dict) -> list:
-        missing_fields = []
-        validation_map = {
-            "scholar_id": "Scholar ID",
-            "name": "Name",
-            "class_name": "Class"
-        }
-
-        for key in self.required_fields:
-            value = student_data.get(key)
-            if value is None or (isinstance(value, str) and not value.strip()):
-                display_name = validation_map.get(key, key.replace("_", " ").title())
-                missing_fields.append(display_name)
+    def validate_input(self, student_data: Student) -> list:
+        errors = []
         
+        if self.current_mode == 'add' and student_data.scholar_id is not None:
+            if not isinstance(student_data.scholar_id, int):
+                errors.append("Scholar ID must be a number if provided.")
+            elif self.student_db_manager.get_student_by_id(student_data.scholar_id):
+                errors.append(f"Scholar ID {student_data.scholar_id} already exists. Please choose a unique one or leave blank for auto-generation.")
 
-        if self.current_mode == 'add':
-            scholar_id = student_data.get('scholar_id')
-            if scholar_id is not None and self.student_db_manager.get_student_by_id(scholar_id):
-                missing_fields.append("Scholar ID already exists. Please choose a unique Scholar ID.")
+        if not student_data.name:
+            errors.append("Name is required.")
+        
+        if not student_data.class_name:
+            errors.append("Class is required.")
 
-        return missing_fields
+        if not student_data.contact:
+            errors.append("Contact Number is required.")
+        elif not isinstance(student_data.contact, int) or len(str(student_data.contact)) < 10:
+             errors.append("Contact Number must be a valid 10-digit number.")
+        
+        if student_data.email and "@" not in student_data.email:
+            errors.append("Email must be a valid email address.")
+
+        return errors
 
     def save_student_data(self):
-        collected_data = self.get_data_from_fields().to_dict()
-        validation_errors = self.validate_input(collected_data)
+        new_student = self.get_data_from_fields()
+        if new_student is None:
+            return
+
+        validation_errors = self.validate_input(new_student)
 
         if validation_errors:
             QMessageBox.warning(self, "Validation Error", f"Please correct the following issues:\n- " + "\n- ".join(validation_errors))
             return
 
-        new_student = self.get_data_from_fields()
-
         try:
             if self.current_mode == 'add':
                 self.student_db_manager.add_student(new_student)
                 QMessageBox.information(self, "Success", "Student added successfully.")
+                self.student_saved.emit()
+                self.back_to_list.emit()
             elif self.current_mode == 'edit':
+                new_student.scholar_id = self.student.scholar_id if self.student else None
+                if new_student.scholar_id is None:
+                    QMessageBox.critical(self, "Error", "Student ID missing for update operation.")
+                    return
+
                 self.student_db_manager.update_student(new_student)
                 QMessageBox.information(self, "Success", f"Student {new_student.name} updated successfully.")
-            
-            self.student_saved.emit()
-            self.student = self.student_db_manager.get_student_by_id(new_student.scholar_id)
-            if self.student:
-                self.set_student(self.student, mode='view')
-            else:
-                QMessageBox.critical(self, "Error", "Student data not found after save. Returning to list.")
-                self.back_to_list.emit()
+                self.student_saved.emit()
+                self.set_student(new_student, mode='view') 
 
         except mysql.connector.Error as err:
             if err.errno == 1062:
@@ -329,3 +373,20 @@ class StudentDetailView(QWidget):
                 QMessageBox.critical(self, "Database Error", f"Error deleting student: {err}")
             except Exception as e:
                 QMessageBox.critical(self, "Application Error", f"An unexpected error occurred during student deletion: {e}")
+
+    def handle_cancel_or_back(self):
+        """Unified handler for 'Cancel' (add/edit mode) or 'Back to List' (view mode)."""
+        if self.current_mode == 'add':
+            reply = QMessageBox.question(self, "Confirm Cancel",
+                                         "Are you sure you want to cancel adding this student? Any unsaved data will be lost.",
+                                         QMessageBox.Yes | QMessageBox.No)
+            if reply == QMessageBox.Yes:
+                self.back_to_list.emit()
+        elif self.current_mode == 'edit':
+            reply = QMessageBox.question(self, "Confirm Cancel",
+                                         "Discard changes and go back to view mode?",
+                                         QMessageBox.Yes | QMessageBox.No)
+            if reply == QMessageBox.Yes:
+                self.set_student(self.original_student_data, mode='view')
+        elif self.current_mode == 'view':
+            self.back_to_list.emit()
