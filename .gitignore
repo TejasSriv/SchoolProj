@@ -215,3 +215,4 @@ pip-log.txt
 .mr.developer.cfg
 
 /school-management-app/src/scripts
+/school-management-app/src/config.py
