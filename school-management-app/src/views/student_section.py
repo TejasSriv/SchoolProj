@@ -1,15 +1,18 @@
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QLabel, QPushButton, QHBoxLayout, QTableWidget,
-    QTableWidgetItem, QLineEdit, QMessageBox, QHeaderView, QDialog
+    QTableWidgetItem, QLineEdit, QMessageBox, QHeaderView
 )
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, pyqtSignal
 import mysql.connector
 
 from controllers.student_controller import StudentDBManager
 from models.student import Student
-from .student_details_dialog import StudentDetailsDialog
+
 
 class StudentSection(QWidget):
+    show_student_details = pyqtSignal(object, str)
+    show_add_student = pyqtSignal()
+
     def __init__(self):
         super().__init__()
         self.student_db_manager = StudentDBManager()
@@ -72,7 +75,7 @@ class StudentSection(QWidget):
         self.load_students()
 
     def load_students(self, students=None):
-        
+
         self.table.setRowCount(0)
         
         if students is None:
@@ -130,30 +133,11 @@ class StudentSection(QWidget):
         self.load_students()
 
     def add_student(self):
-        dialog = StudentDetailsDialog(self, student=None, mode='add')
-        if dialog.exec_() == QDialog.Accepted:
-            new_student = dialog.get_data()
-            try:
-                self.student_db_manager.add_student(new_student)
-                self.load_students()
-                QMessageBox.information(self, "Success", "Student added successfully.")
-            except mysql.connector.Error as err:
-                if err.errno == 1062:
-                    QMessageBox.warning(self, "Duplicate Entry", f"A student with the provided Scholar ID, APAAR ID, or Permanent Enrollment Number already exists. Details: {err}")
-                else:
-                    QMessageBox.critical(self, "Database Error", f"Error adding student: {err}")
-            except Exception as e:
-                QMessageBox.critical(self, "Application Error", f"An unexpected error occurred during student addition: {e}")
+        self.show_add_student.emit()
 
     def view_student_details(self, row, column):
         selected_student = self.table.verticalHeaderItem(row).data(Qt.UserRole)
-        if not selected_student:
+        if selected_student:
+            self.show_student_details.emit(selected_student, 'view')
+        else:
             QMessageBox.critical(self, "Error", "Could not retrieve student data for details view.")
-            return
-
-        dialog = StudentDetailsDialog(self, student=selected_student, mode='view')
-        if dialog.exec_() == QDialog.Accepted:
-            if self.search_input.text().strip():
-                self.search_students()
-            else:
-                self.load_students()

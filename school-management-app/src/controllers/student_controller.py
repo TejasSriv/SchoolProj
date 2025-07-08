@@ -62,11 +62,29 @@ class StudentDBManager:
         raw_students = self._execute_query(query, fetch_all=True)
         return [Student.from_dict(s) for s in raw_students] if raw_students else []
 
-    def search_students(self, keyword):
-
+    def get_student_by_id(self, scholar_id: int):
         select_cols_str = ", ".join(self.STUDENT_COLUMNS)
-        query = f"SELECT {select_cols_str} FROM students WHERE name LIKE %s OR scholar_id LIKE %s"
-        raw_students = self._execute_query(query, (f"%{keyword}%", f"{keyword}%"), fetch_all=True)
+        query = f"SELECT {select_cols_str} FROM students WHERE scholar_id = %s"
+        raw_student = self._execute_query(query, (scholar_id,), fetch_one=True)
+        return Student.from_dict(raw_student) if raw_student else None
+
+    def search_students(self, keyword):
+        students = []
+        select_cols_str = ", ".join(self.STUDENT_COLUMNS)
+        
+        try:
+            int_keyword = int(keyword)
+        except ValueError:
+            int_keyword = None
+
+        if int_keyword is not None:
+             query = f"SELECT {select_cols_str} FROM students WHERE scholar_id = %s OR name LIKE %s"
+             params = (int_keyword, f"%{keyword}%")
+        else:
+            query = f"SELECT {select_cols_str} FROM students WHERE name LIKE %s"
+            params = (f"%{keyword}%",)
+            
+        raw_students = self._execute_query(query, params, fetch_all=True)
         return [Student.from_dict(s) for s in raw_students] if raw_students else []
 
     def add_student(self, student: Student):
