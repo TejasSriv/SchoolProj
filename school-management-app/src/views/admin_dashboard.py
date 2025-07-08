@@ -2,12 +2,12 @@ import os
 from PyQt5.QtGui import QIcon, QPixmap
 
 from PyQt5.QtWidgets import (
-    QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QStackedWidget, QMessageBox, QFrame # QFrame added for sidebar
+    QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QStackedWidget, QMessageBox, QFrame
 )
 from PyQt5.QtCore import Qt
 
 from views.student_section import StudentSection
-from views.student_detail_view import StudentDetailView # <-- NEW IMPORT
+from views.student_detail_view import StudentDetailView
 
 class AdminDashboard(QMainWindow):
     def __init__(self, username, geometry=None, app_window_icon=None):
@@ -19,6 +19,9 @@ class AdminDashboard(QMainWindow):
         else:
             self.setGeometry(150, 150, 900, 700)
 
+        # Set background color for the main dashboard window (Very Light Gray)
+        self.setStyleSheet("QMainWindow { background-color: #F8F9FA; }")
+
         # Main layout
         main_widget = QWidget()
         main_layout = QHBoxLayout()
@@ -26,29 +29,31 @@ class AdminDashboard(QMainWindow):
         self.setCentralWidget(main_widget)
 
         self.sidebar_widget = QFrame()
+        self.sidebar_widget.setObjectName("sidebarFrame") # Added object name for clear styling
         self.sidebar_widget.setFixedWidth(180)
         self.sidebar_widget.setStyleSheet("""
-            QFrame {
-                background-color: #ffcb06;
+            QFrame#sidebarFrame {
+                background-color: #2C3E50;
                 border-top-left-radius: 12px;
                 border-bottom-left-radius: 12px;
                 border-top-right-radius: 12px;
                 border-bottom-right-radius: 12px;
             }
-            QPushButton {
-                color: #eebbc3;
+            QFrame#sidebarFrame QPushButton {
+                color: #F8F9FA;
                 background: transparent;
                 border: none;
                 padding: 12px 0;
                 font-size: 16px;
                 text-align: left;
+                padding-left: 20px;
             }
-            QPushButton:hover {
-                background-color: #393e6a;
+            QFrame#sidebarFrame QPushButton:hover {
+                background-color: #34495E;
                 border-radius: 6px;
             }
-            QPushButton#logoutBtn {
-                color: #ffadad;
+            QFrame#sidebarFrame QPushButton#logoutBtn {
+                color: #DC3545;
             }
         """)
         sidebar_layout = QVBoxLayout()
@@ -98,28 +103,27 @@ class AdminDashboard(QMainWindow):
         sidebar_layout.addWidget(self.btn_logout)
 
         self.stack = QStackedWidget()
+        self.stack.setStyleSheet("QStackedWidget { background-color: #F8F9FA; }")
         
-
         # 0. Dashboard placeholder
         dashboard_label = QLabel(f"Welcome, {username}! This is the admin dashboard.")
         dashboard_label.setAlignment(Qt.AlignCenter)
-        dashboard_label.setStyleSheet("font-size: 22px; color: #232946;")
-        self.dashboard_idx = self.stack.addWidget(dashboard_label) # Store index 0
+        dashboard_label.setStyleSheet("font-size: 22px; color: #333333;")
+        self.dashboard_idx = self.stack.addWidget(dashboard_label)
 
         # 1. Student Section (List View)
         self.students_widget = StudentSection() 
-        self.student_list_idx = self.stack.addWidget(self.students_widget) # Store index 1
+        self.student_list_idx = self.stack.addWidget(self.students_widget)
 
         # 2. Teacher Section (Placeholder for now)
         teachers_label = QLabel("Teachers Section")
         teachers_label.setAlignment(Qt.AlignCenter)
-        teachers_label.setStyleSheet("font-size: 20px; color: #232946;")
-        self.teachers_idx = self.stack.addWidget(teachers_label) # Store index 2
+        teachers_label.setStyleSheet("font-size: 20px; color: #333333;")
+        self.teachers_idx = self.stack.addWidget(teachers_label)
 
         # 3. Student Detail View (New Form View)
-        # It's important to pass 'self' as the parent so StudentDetailView can update AdminDashboard's title
         self.student_detail_view = StudentDetailView(parent=self)
-        self.student_detail_view_idx = self.stack.addWidget(self.student_detail_view) # Store new index, likely 3
+        self.student_detail_view_idx = self.stack.addWidget(self.student_detail_view)
 
         # --- Connect sidebar buttons to stack using a helper function ---
         self.btn_dashboard.clicked.connect(lambda: self.set_current_page(self.dashboard_idx, "Dashboard"))
@@ -128,76 +132,49 @@ class AdminDashboard(QMainWindow):
         self.btn_logout.clicked.connect(self.logout)
 
         # --- Connect Signals for Navigation and Data Refresh ---
-
-        # From StudentSection to AdminDashboard (to show detail view)
         self.students_widget.show_student_details.connect(self.display_student_detail)
         self.students_widget.show_add_student.connect(self.display_add_student_form)
-
-        # From StudentDetailView to AdminDashboard (to go back or refresh list)
         self.student_detail_view.student_saved.connect(self.handle_student_data_change)
         self.student_detail_view.student_deleted.connect(self.handle_student_data_change)
         self.student_detail_view.back_to_list.connect(self.show_student_list)
 
         # Add sidebar and content to main layout (Crucial: ensure stretch factor for content)
         main_layout.addWidget(self.sidebar_widget)
-        main_layout.addWidget(self.stack, 4) # <-- IMPORTANT: Added the stretch factor back!
+        main_layout.addWidget(self.stack, 4)
 
         # Set initial page on startup
-        self.set_current_page(self.dashboard_idx, "Dashboard") # Start on Dashboard
+        self.set_current_page(self.dashboard_idx, "Dashboard")
 
     def set_current_page(self, index, title_suffix=""):
-        """
-        Sets the current page of the QStackedWidget and updates the main window title.
-        Also handles specific page behaviors like refreshing student list.
-        """
         self.stack.setCurrentIndex(index)
         self.setWindowTitle(f"Admin Dashboard - {title_suffix}")
 
-        # Specific actions when switching pages
         if index == self.student_list_idx:
-            # Ensure the student list is reloaded/refreshed when navigating to it
-            self.students_widget.load_students() 
-        # Add similar logic for other sections if they need data refresh
+            self.students_widget.load_students()
 
     def display_student_detail(self, student_obj, mode):
-        """
-        Slot to receive signal from StudentSection and show StudentDetailView for an existing student.
-        """
         self.student_detail_view.set_student(student_obj, mode)
         self.stack.setCurrentIndex(self.student_detail_view_idx)
 
     def display_add_student_form(self):
-        """
-        Slot to receive signal from StudentSection and show StudentDetailView in 'add' mode.
-        """
-        self.student_detail_view.set_student(None, 'add') # Pass None for new student
+        self.student_detail_view.set_student(None, 'add')
         self.stack.setCurrentIndex(self.student_detail_view_idx)
 
     def show_student_list(self):
-        """
-        Slot to switch back to the StudentSection (list view).
-        This method will also be called by handle_student_data_change.
-        """
         self.set_current_page(self.student_list_idx, "Student Management")
 
     def handle_student_data_change(self):
-        """
-        Slot to handle student_saved or student_deleted signals.
-        Reloads the student list and returns to it.
-        """
-        self.show_student_list() # This function already reloads and switches
+        self.show_student_list()
 
     def logout(self):
         reply = QMessageBox.question(self, 'Logout', 'Are you sure you want to logout?',
                                      QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
         if reply == QMessageBox.Yes:
-            from app import MainWindow # Import MainWindow here to avoid circular dependency
-            # Get current geometry before hiding/closing
+            from app import MainWindow
             current_geometry = self.geometry()
-            self.hide() # Hide current window
+            self.hide()
             
-            # Create a new login window and set its geometry
             login_window = MainWindow()
             login_window.setGeometry(current_geometry)
             login_window.show()
-            self.close() # Close dashboard
+            self.close()

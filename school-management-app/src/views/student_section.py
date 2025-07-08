@@ -17,15 +17,53 @@ class StudentSection(QWidget):
         super().__init__()
         self.student_db_manager = StudentDBManager()
 
+        self.setStyleSheet("QWidget { background-color: #F8F9FA; }")
+
         layout = QVBoxLayout()
         title = QLabel("Student Management")
-        title.setStyleSheet("font-size: 20px; font-weight: bold;")
+        title.setStyleSheet("font-size: 20px; font-weight: bold; color: #333333;")
         layout.addWidget(title)
 
         search_layout = QHBoxLayout()
         self.search_input = QLineEdit()
         self.search_input.setPlaceholderText("Search by name or ID")
+        self.search_input.setFixedHeight(35)
+        self.search_input.setStyleSheet("""
+            QLineEdit {
+                background-color: #FFFFFF;
+                color: #333333;
+                border: 1px solid #6C757D;
+                border-radius: 4px;
+                padding: 8px;
+            }
+            QLineEdit:focus {
+                border: 1px solid #28A745;
+                outline: none;
+            }
+            QLineEdit::placeholder {
+                color: #666666;
+            }
+        """)
+        
         search_btn = QPushButton("Search")
+        search_btn.setObjectName("primaryActionBtn")
+        search_btn.setFixedHeight(35)
+        search_btn.setStyleSheet("""
+            QPushButton#primaryActionBtn {
+                background-color: #28A745;
+                color: #FFFFFF;
+                border: none;
+                border-radius: 5px;
+                padding: 8px 15px;
+                font-weight: bold;
+            }
+            QPushButton#primaryActionBtn:hover {
+                background-color: #218838;
+            }
+            QPushButton#primaryActionBtn:pressed {
+                background-color: #1E7E34;
+            }
+        """)
         search_btn.clicked.connect(lambda: (self.search_students(), search_btn.setFocusPolicy(Qt.NoFocus)))
         
         search_layout.addWidget(self.search_input)
@@ -33,13 +71,51 @@ class StudentSection(QWidget):
         layout.addLayout(search_layout)
 
         self.search_status_label = QLabel("")
-        self.search_status_label.setStyleSheet("font-style: italic; color: gray;")
+        self.search_status_label.setStyleSheet("font-style: italic; color: #666666;")
         layout.addWidget(self.search_status_label)
 
         self.table = QTableWidget()
         self.table.setSelectionBehavior(QTableWidget.SelectRows)
         self.table.setSelectionMode(QTableWidget.SingleSelection)
         self.table.cellDoubleClicked.connect(self.view_student_details)
+
+        # Table Styling
+        self.table.setStyleSheet("""
+            QTableWidget {
+                background-color: #FFFFFF;
+                gridline-color: #D1D1D1;
+                border: 1px solid #D1D1D1;
+                border-radius: 5px;
+                selection-background-color: #C1D9E8;
+                selection-color: #333333;
+            }
+            QTableWidget::item {
+                padding: 5px;
+            }
+            QTableWidget::item:selected {
+                background-color: #C1D9E8;
+                color: #333333;
+            }
+            QTableWidget::item:alternate {
+                background-color: #F8F9FA;
+            }
+            QTableWidget::item:!alternate {
+                background-color: #FFFFFF;
+            }
+        """)
+
+        self.table.horizontalHeader().setStyleSheet("""
+            QHeaderView::section {
+                background-color: #6C757D;
+                color: #FFFFFF;
+                padding: 8px;
+                border: 1px solid #6C757D;
+                font-weight: bold;
+            }
+            QHeaderView::section:checked {
+                background-color: #5A6268;
+            }
+        """)
 
         self.display_column_names = {
             "scholar_id": "Scholar ID",
@@ -58,13 +134,68 @@ class StudentSection(QWidget):
 
         bottom_buttons_layout = QHBoxLayout()
         add_btn = QPushButton("Add Student")
+        add_btn.setObjectName("primaryActionBtn")
+        add_btn.setFixedHeight(40)
+        add_btn.setStyleSheet("""
+            QPushButton#primaryActionBtn {
+                background-color: #28A745;
+                color: #FFFFFF;
+                border: none;
+                border-radius: 5px;
+                padding: 8px 15px;
+                font-weight: bold;
+                font-size: 16px;
+            }
+            QPushButton#primaryActionBtn:hover {
+                background-color: #218838;
+            }
+            QPushButton#primaryActionBtn:pressed {
+                background-color: #1E7E34;
+            }
+        """)
         add_btn.clicked.connect(lambda: (self.add_student(), add_btn.setFocusPolicy(Qt.NoFocus)))
         
         self.clear_search_btn = QPushButton("Clear Search")
+        self.clear_search_btn.setObjectName("secondaryActionBtn")
+        self.clear_search_btn.setFixedHeight(40)
+        self.clear_search_btn.setStyleSheet("""
+            QPushButton#secondaryActionBtn {
+                background-color: #6C757D;
+                color: #FFFFFF;
+                border: none;
+                border-radius: 5px;
+                padding: 8px 15px;
+                font-size: 16px;
+            }
+            QPushButton#secondaryActionBtn:hover {
+                background-color: #5A6268;
+            }
+            QPushButton#secondaryActionBtn:pressed {
+                background-color: #495057;
+            }
+        """)
         self.clear_search_btn.clicked.connect(lambda: (self.clear_search(), self.clear_search_btn.setFocusPolicy(Qt.NoFocus)))
         self.clear_search_btn.setVisible(False)
 
         self.refresh_btn = QPushButton("Refresh")
+        self.refresh_btn.setObjectName("secondaryActionBtn")
+        self.refresh_btn.setFixedHeight(40)
+        self.refresh_btn.setStyleSheet("""
+            QPushButton#secondaryActionBtn {
+                background-color: #6C757D;
+                color: #FFFFFF;
+                border: none;
+                border-radius: 5px;
+                padding: 8px 15px;
+                font-size: 16px;
+            }
+            QPushButton#secondaryActionBtn:hover {
+                background-color: #5A6268;
+            }
+            QPushButton#secondaryActionBtn:pressed {
+                background-color: #495057;
+            }
+        """)
         self.refresh_btn.clicked.connect(lambda: (self.load_students(), self.refresh_btn.setFocusPolicy(Qt.NoFocus)))
 
         bottom_buttons_layout.addWidget(add_btn)
@@ -117,7 +248,9 @@ class StudentSection(QWidget):
                     value_str = str(value)
                 else:
                     value_str = str(value)
-                self.table.setItem(row_idx, col_idx, QTableWidgetItem(value_str))
+                item = QTableWidgetItem(value_str)
+                item.setForeground(Qt.black)
+                self.table.setItem(row_idx, col_idx, item)
 
     def search_students(self):
         keyword = self.search_input.text().strip()
