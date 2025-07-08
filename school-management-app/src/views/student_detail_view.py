@@ -62,7 +62,7 @@ class StudentDetailView(QWidget):
         
         for key in ["dob", "admission_date"]:
             self.fields[key].setCalendarPopup(True)
-            self.fields[key].setDisplayFormat("yyyy-MM-dd")
+            self.fields[key].setDisplayFormat("dd-MM-yyyy")
             self.fields[key].setDate(QDate.currentDate())
 
         digit_validator = QRegExpValidator(QRegExp(r'^\d{0,20}$'), self)
