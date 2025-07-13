@@ -25,7 +25,8 @@ class StudentDBManager:
         "alternate_contact",
         "email",
         "aadhaar",
-        "birth_certificate"
+        "birth_certificate",
+        "photo"
     ]
 
     def _execute_query(self, query, params=None, fetch_one=False, fetch_all=False, commit=False):

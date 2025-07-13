@@ -6,7 +6,7 @@ class Student:
                  social_category=None, father=None, mother=None, last_school=None,
                  tc_number=None, address=None, city=None, state=None,
                  admission_date=None, contact=None, alternate_contact=None,
-                 email=None, aadhaar=False, birth_certificate=False):
+                 email=None, aadhaar=False, birth_certificate=False, photo=None):
         
         self.scholar_id = scholar_id
         self.apaar_id = apaar_id
@@ -29,6 +29,7 @@ class Student:
         self.email = email
         self.aadhaar = aadhaar
         self.birth_certificate = birth_certificate
+        self.photo = photo
 
     def to_dict(self):
         return {
@@ -52,7 +53,8 @@ class Student:
             "alternate_contact": self.alternate_contact,
             "email": self.email,
             "aadhaar": self.aadhaar,
-            "birth_certificate": self.birth_certificate
+            "birth_certificate": self.birth_certificate,
+            "photo": self.photo
         }
 
     @classmethod

@@ -1,11 +1,12 @@
 import os
+import shutil
 
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QLineEdit, QPushButton, QLabel, QHBoxLayout,
     QComboBox, QTextEdit, QDateEdit, QCheckBox, QScrollArea, QMessageBox,
-    QFormLayout, QGroupBox
+    QFormLayout, QGroupBox, QFileDialog
 )
-from PyQt5.QtGui import QRegExpValidator
+from PyQt5.QtGui import QRegExpValidator, QPixmap
 from PyQt5.QtCore import QDate, QRegExp, Qt, pyqtSignal
 
 import mysql.connector
@@ -25,6 +26,7 @@ class StudentDetailView(QWidget):
         self.original_student_data = None
         self.student_db_manager = StudentDBManager()
         self.current_mode = 'view'
+        self.current_photo_filename = None # To store just the filename for DB interaction
 
         self.setStyleSheet("QWidget { background-color: #F8F9FA; }")
 
@@ -79,6 +81,15 @@ class StudentDetailView(QWidget):
 
         script_dir = os.path.dirname(os.path.abspath(__file__))
         self.calendar_icon_path = os.path.join(script_dir, '../..', 'resources', 'calendar-symbol.svg')
+        
+        self.student_photos_dir = os.path.join(script_dir, '../..', 'resources', 'student-photos')
+        os.makedirs(self.student_photos_dir, exist_ok=True)
+        self.default_photo_filename = 'default.jpeg'
+        self.default_photo_full_path = os.path.join(self.student_photos_dir, self.default_photo_filename)
+        
+        if not os.path.exists(self.default_photo_full_path):
+            print(f"Warning: Default photo '{self.default_photo_filename}' not found in '{self.student_photos_dir}'. Please ensure it exists.")
+
 
         if not os.path.exists(self.calendar_icon_path):
             print(f"Warning: Calendar icon not found at {self.calendar_icon_path}. Falling back to default QDateEdit arrow.")
@@ -181,10 +192,42 @@ class StudentDetailView(QWidget):
             "alternate_contact": QLineEdit(),
             "email": QLineEdit(),
             "aadhaar": QCheckBox(""),
-            "birth_certificate": QCheckBox("")
+            "birth_certificate": QCheckBox(""),
+            "photo_display_label": QLabel(),
+            "select_photo_button": QPushButton("Select Photo")
         }
 
+        self.fields["photo_display_label"].setFixedSize(150, 150)
+        self.fields["photo_display_label"].setAlignment(Qt.AlignCenter)
+        self.fields["photo_display_label"].setStyleSheet("""
+            QLabel {
+                border: 1px #6C757D;
+                background-color: #E0E0E0;
+            }
+        """)
+
+        self._set_photo_display(self.default_photo_full_path)
+        self.current_photo_filename = self.default_photo_filename
+
+        self.fields["select_photo_button"].clicked.connect(self._select_photo)
+        self.fields["select_photo_button"].setStyleSheet("""
+            QPushButton {
+                background-color: #007BFF;
+                color: #FFFFFF;
+                border: none;
+                border-radius: 5px;
+                padding: 5px 10px;
+                font-size: 14px;
+            }
+            QPushButton:hover {
+                background-color: #0056b3;
+            }
+        """)
+
         for key, widget in self.fields.items():
+            if key in ["photo_display_label", "select_photo_button"]:
+                continue
+            
             if isinstance(widget, QLineEdit) or isinstance(widget, QTextEdit) or isinstance(widget, QComboBox) or isinstance(widget, QDateEdit):
                 widget.setStyleSheet(self.input_field_style)
             elif isinstance(widget, QCheckBox):
@@ -206,7 +249,17 @@ class StudentDetailView(QWidget):
             self.fields[key].setMaxLength(20)
             self.fields[key].setPlaceholderText("Enter numbers only")
 
+        photo_layout = QVBoxLayout()
+        photo_layout.setAlignment(Qt.AlignCenter)
+        photo_layout.addWidget(self.fields["photo_display_label"])
+        photo_layout.addWidget(self.fields["select_photo_button"])
+        photo_layout.addSpacing(15)
+        form_layout.addRow(photo_layout)
+
         for key, widget in self.fields.items():
+            if key in ["photo_display_label", "select_photo_button"]:
+                continue
+            
             label_text = key.replace("_", " ").title()
             if key == "class_name":
                 label_text = "Class"
@@ -307,7 +360,7 @@ class StudentDetailView(QWidget):
         """)
 
         self.action_cancel_btn = QPushButton("Back")
-        self.action_cancel_btn.setObjectName("secondaryActionBtn") # Reusing secondaryActionBtn style
+        self.action_cancel_btn.setObjectName("secondaryActionBtn")
         self.action_cancel_btn.setStyleSheet(button_base_style + """
             QPushButton#secondaryActionBtn {
                 background-color: #6C757D;
@@ -336,6 +389,43 @@ class StudentDetailView(QWidget):
 
         self.required_fields = ["scholar_id", "name"]
 
+    def _set_photo_display(self, full_photo_path):
+        pixmap = QPixmap(full_photo_path)
+        if pixmap.isNull():
+            print(f"Error loading image from {full_photo_path}. Using backup default.")
+            fallback_pixmap = QPixmap(self.default_photo_full_path)
+            if fallback_pixmap.isNull():
+                self.fields["photo_display_label"].clear()
+                self.fields["photo_display_label"].setText("No Photo")
+                return
+            else:
+                pixmap = fallback_pixmap
+
+        scaled_pixmap = pixmap.scaled(self.fields["photo_display_label"].size(), 
+                                      Qt.KeepAspectRatio, Qt.SmoothTransformation)
+        self.fields["photo_display_label"].setPixmap(scaled_pixmap)
+
+    def _select_photo(self):
+        options = QFileDialog.Options()
+        file_path, _ = QFileDialog.getOpenFileName(self, "Select Student Photo", 
+                                                    "", "Image Files (*.png *.jpg *.jpeg *.gif *.bmp *.svg);;All Files (*)", 
+                                                    options=options)
+        if file_path:
+            try:
+                photo_filename = os.path.basename(file_path)
+                destination_path = os.path.join(self.student_photos_dir, photo_filename)
+
+                if file_path != self.default_photo_full_path or not os.path.exists(destination_path):
+                    shutil.copy(file_path, destination_path)
+                
+                self._set_photo_display(destination_path)
+                self.current_photo_filename = photo_filename
+            except Exception as e:
+                QMessageBox.warning(self, "Photo Error", f"Could not copy or set photo: {e}")
+                self._set_photo_display(file_path)
+                self.current_photo_filename = os.path.basename(file_path)
+
+
     def set_student(self, student: Student = None, mode='view'):
 
         self.student = student
@@ -361,7 +451,24 @@ class StudentDetailView(QWidget):
     def _populate_fields(self, student: Student):
         self.clear_fields()
 
+        photo_filename_from_db = getattr(student, 'photo', None)
+        if photo_filename_from_db and photo_filename_from_db != self.default_photo_filename:
+            full_path_to_photo = os.path.join(self.student_photos_dir, photo_filename_from_db)
+            if os.path.exists(full_path_to_photo):
+                self._set_photo_display(full_path_to_photo)
+                self.current_photo_filename = photo_filename_from_db
+            else:
+                print(f"Warning: Photo file '{photo_filename_from_db}' not found for student. Using default.")
+                self._set_photo_display(self.default_photo_full_path)
+                self.current_photo_filename = self.default_photo_filename
+        else:
+            self._set_photo_display(self.default_photo_full_path)
+            self.current_photo_filename = self.default_photo_filename
+
         for key, widget in self.fields.items():
+            if key in ["photo_display_label", "select_photo_button"]:
+                continue
+
             value = getattr(student, key, None)
             
             if key == "class_name" and hasattr(student, 'class_name'):
@@ -395,7 +502,13 @@ class StudentDetailView(QWidget):
                 widget.setChecked(bool(value))
     
     def clear_fields(self):
+        self._set_photo_display(self.default_photo_full_path)
+        self.current_photo_filename = self.default_photo_filename
+        
         for key, widget in self.fields.items():
+            if key in ["photo_display_label", "select_photo_button"]:
+                continue
+
             if isinstance(widget, QLineEdit) or isinstance(widget, QTextEdit):
                 widget.clear()
             elif isinstance(widget, QComboBox):
@@ -407,6 +520,8 @@ class StudentDetailView(QWidget):
 
     def set_view_mode(self):
         self.current_mode = 'view'
+
+        print(self.student.photo)
         
         window_title = "Student Details"
         if self.student and self.student.name:
@@ -416,7 +531,10 @@ class StudentDetailView(QWidget):
         for key, widget in self.fields.items():
             if key == "scholar_id":
                 widget.setReadOnly(True)
-                widget.setProperty("readOnly", True) # for CSS
+                widget.setProperty("readOnly", True)
+            elif key == "select_photo_button":
+                widget.setVisible(False)
+                continue
             elif isinstance(widget, QLineEdit) or isinstance(widget, QTextEdit):
                 widget.setReadOnly(True)
                 widget.setProperty("readOnly", True)
@@ -424,7 +542,7 @@ class StudentDetailView(QWidget):
                 widget.setEnabled(False)
         
         for key, widget in self.fields.items():
-            if isinstance(widget, QLineEdit) or isinstance(widget, QTextEdit) or isinstance(widget, QComboBox) or isinstance(widget, QDateEdit) or isinstance(widget, QCheckBox):
+            if key not in ["photo_display_label", "select_photo_button"] and (isinstance(widget, QLineEdit) or isinstance(widget, QTextEdit) or isinstance(widget, QComboBox) or isinstance(widget, QDateEdit) or isinstance(widget, QCheckBox)):
                 widget.setStyleSheet(self.input_field_style + self.read_only_field_style)
 
 
@@ -446,6 +564,9 @@ class StudentDetailView(QWidget):
             if key == "scholar_id":
                  widget.setReadOnly(True)
                  widget.setProperty("readOnly", True)
+            elif key == "select_photo_button":
+                widget.setVisible(True)
+                continue
             elif isinstance(widget, QLineEdit) or isinstance(widget, QTextEdit):
                 widget.setReadOnly(False)
                 widget.setProperty("readOnly", False)
@@ -453,9 +574,9 @@ class StudentDetailView(QWidget):
                 widget.setEnabled(True)
         
         for key, widget in self.fields.items():
-            if isinstance(widget, QLineEdit) or isinstance(widget, QTextEdit) or isinstance(widget, QComboBox) or isinstance(widget, QDateEdit):
-                widget.setStyleSheet(self.input_field_style)
-            elif isinstance(widget, QCheckBox):
+             if key not in ["photo_display_label", "select_photo_button"] and (isinstance(widget, QLineEdit) or isinstance(widget, QTextEdit) or isinstance(widget, QComboBox) or isinstance(widget, QDateEdit)):
+                 widget.setStyleSheet(self.input_field_style)
+             elif isinstance(widget, QCheckBox):
                 widget.setStyleSheet("QCheckBox { color: #333333; }")
 
         self.action_cancel_btn.setText("Cancel")
@@ -471,7 +592,10 @@ class StudentDetailView(QWidget):
         self.clear_fields()
         
         for key, widget in self.fields.items():
-            if isinstance(widget, QLineEdit) or isinstance(widget, QTextEdit):
+            if key == "select_photo_button":
+                widget.setVisible(True)
+                continue
+            elif isinstance(widget, QLineEdit) or isinstance(widget, QTextEdit):
                 widget.setReadOnly(False)
                 widget.setProperty("readOnly", False)
             elif isinstance(widget, QComboBox) or isinstance(widget, QDateEdit) or isinstance(widget, QCheckBox):
@@ -480,9 +604,9 @@ class StudentDetailView(QWidget):
                 widget.setDate(QDate.currentDate())
         
         for key, widget in self.fields.items():
-            if isinstance(widget, QLineEdit) or isinstance(widget, QTextEdit) or isinstance(widget, QComboBox) or isinstance(widget, QDateEdit):
-                widget.setStyleSheet(self.input_field_style)
-            elif isinstance(widget, QCheckBox):
+             if key not in ["photo_display_label", "select_photo_button"] and (isinstance(widget, QLineEdit) or isinstance(widget, QTextEdit) or isinstance(widget, QComboBox) or isinstance(widget, QDateEdit)):
+                 widget.setStyleSheet(self.input_field_style)
+             elif isinstance(widget, QCheckBox):
                 widget.setStyleSheet("QCheckBox { color: #333333; }")
 
         self.fields["scholar_id"].setReadOnly(False)
@@ -499,6 +623,12 @@ class StudentDetailView(QWidget):
     def get_data_from_fields(self) -> Student:
         data = {}
         for key, widget in self.fields.items():
+            if key == "photo_display_label":
+                data["photo"] = self.current_photo_filename
+                continue
+            elif key == "select_photo_button":
+                continue
+
             if isinstance(widget, QLineEdit):
                 text = widget.text().strip()
                 if key in ["scholar_id", "apaar_id", "permanent_enrollment_number", "tc_number", "contact", "alternate_contact"]:
@@ -525,6 +655,9 @@ class StudentDetailView(QWidget):
         if not data.get("name"):
             QMessageBox.warning(self, "Validation", "Student Name cannot be empty.")
             return None
+
+        if 'photo' not in data:
+            data['photo'] = None
 
         return Student(**data)
 
@@ -603,6 +736,15 @@ class StudentDetailView(QWidget):
 
         if reply == QMessageBox.Yes:
             try:
+                if self.student.photo and self.student.photo != self.default_photo_filename:
+                    photo_to_delete = os.path.join(self.student_photos_dir, self.student.photo)
+                    if os.path.exists(photo_to_delete):
+                        try:
+                            os.remove(photo_to_delete)
+                            print(f"Deleted photo file: {photo_to_delete}")
+                        except OSError as e:
+                            print(f"Error deleting photo file {photo_to_delete}: {e}")
+
                 self.student_db_manager.delete_student(scholar_id_to_delete)
                 QMessageBox.information(self, "Success", f"Student {student_name} deleted successfully.")
                 self.student_deleted.emit()
